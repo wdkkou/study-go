@@ -1,15 +1,27 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"reflect"
 
+	sqls "sample-api/app/db"
+
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
+
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
 
@@ -98,4 +110,45 @@ func getJson(c echo.Context) error {
 	user := CreateUser{Id: 0, Name: u.Name, Email: u.Email}
 	return c.JSON(http.StatusCreated, user)
 
+}
+
+func run() error {
+	ctx := context.Background()
+	db, err := sql.Open("mysql", "user:password@/dbname")
+	if err != nil {
+		return err
+	}
+
+	// list all users
+	queries := sqls.New(db)
+	users, err := queries.ListUsers(ctx)
+	if err != nil {
+		return err
+	}
+	log.Println(users)
+
+	// create a user
+	result, err := queries.CreateUser(ctx, sqls.CreateUserParams{
+		Name:  "koki wada",
+		Email: sql.NullString{String: "xxxx@yyyy.com", Valid: true},
+	})
+	if err != nil {
+		return err
+	}
+
+	insertedUserID, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	log.Println(insertedUserID)
+
+	// get user we just inserted
+	fetchedUser, err := queries.GetUser(ctx, insertedUserID)
+	if err != nil {
+		return err
+	}
+
+	// print true
+	log.Println(reflect.DeepEqual(insertedUserID, fetchedUser.ID))
+	return nil
 }

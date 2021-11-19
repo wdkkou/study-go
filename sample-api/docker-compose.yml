@@ -2,6 +2,20 @@ version: "3"
 services:
   backend:
     build: .
+    depends_on:
+      - db
     ports:
       - "8080:8080"
     image: backend-api
+    networks:
+      - backend-network
+  db:
+    image: mysql:8.0
+    networks:
+      - backend-network
+    volumes:
+      - mysql-volume:/var/lib/mysql
+networks:
+  backend-network:
+volumes:
+  mysql-volume:
