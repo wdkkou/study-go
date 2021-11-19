@@ -18,9 +18,9 @@ import (
 
 func main() {
 
-	if err := run(); err != nil {
-		log.Fatal(err)
-	}
+	// if err := run(); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
