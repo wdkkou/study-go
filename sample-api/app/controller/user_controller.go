@@ -3,11 +3,17 @@ package controller
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"net/http"
 	sqls "sample-api/app/db"
+	"sample-api/app/model"
+	"strconv"
+
+	"github.com/labstack/echo/v4"
 )
 
-func CreateUser() (result sql.Result, err error) {
+func CreateUser(c echo.Context) error {
 	ctx := context.Background()
 	db, err := connect(ctx)
 	if err != nil {
@@ -16,14 +22,23 @@ func CreateUser() (result sql.Result, err error) {
 	}
 	defer db.Close()
 	queries := sqls.New(db)
-
-	return queries.CreateUser(ctx, sqls.CreateUserParams{
-		Name:  "koki wada",
-		Email: sql.NullString{String: "xxxx@yyyy.com", Valid: true},
-	})
+	u := new(model.User)
+	// Content-Typeヘッダーに基づいて, バインドされる
+	// ex. applicatin/jsonの場合、{"name": "hoge", "email": "huga"}のデータがバインドされる
+	if err := c.Bind(u); err != nil {
+		return err
+	}
+	user := model.User{Name: u.Name, Email: u.Email}
+	params := sqls.CreateUserParams{
+		Name:  u.Name,
+		Email: sql.NullString{String: u.Email, Valid: true},
+	}
+	queries.CreateUser(ctx, params)
+	return c.String(http.StatusOK, fmt.Sprintf("created user =%v", user))
 }
 
-func GetUser(id int64) (user sqls.User, err error) {
+func GetUser(c echo.Context) error {
+	log.Println("GetUser begin.")
 	ctx := context.Background()
 	db, err := connect(ctx)
 	if err != nil {
@@ -31,12 +46,21 @@ func GetUser(id int64) (user sqls.User, err error) {
 		log.Fatal(err.Error())
 	}
 	defer db.Close()
-	queries := sqls.New(db)
 
-	return queries.GetUser(ctx, id)
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	queries := sqls.New(db)
+	user, err := queries.GetUser(ctx, id)
+	if err != nil {
+		log.Println("get user error.")
+		return c.String(http.StatusNotFound, fmt.Sprintf("not found id = %d", id))
+	}
+
+	str := fmt.Sprintf("name = %v, email = %v\n", user.Name, user.Email)
+	log.Println(str)
+	return c.String(http.StatusOK, str)
 }
 
-func GetUsers() (users []sqls.User, err error) {
+func GetUsers(c echo.Context) error {
 	ctx := context.Background()
 	db, err := connect(ctx)
 	if err != nil {
@@ -46,10 +70,16 @@ func GetUsers() (users []sqls.User, err error) {
 	defer db.Close()
 	queries := sqls.New(db)
 
-	return queries.ListUsers(ctx)
+	users, err := queries.ListUsers(ctx)
+	if err != nil {
+		log.Println("get users error.")
+		return err
+	}
+	str := fmt.Sprintf("users = %v", users)
+	return c.String(http.StatusOK, str)
 }
 
-func DeleteUser(id int64) error {
+func DeleteUser(c echo.Context) error {
 	ctx := context.Background()
 	db, err := connect(ctx)
 	if err != nil {
@@ -57,9 +87,18 @@ func DeleteUser(id int64) error {
 		log.Fatal(err.Error())
 	}
 	defer db.Close()
+
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	queries := sqls.New(db)
 
-	return queries.DeleteUser(ctx, id)
+	queries.DeleteUser(ctx, id)
+	if err != nil {
+		log.Println("delete user error.")
+		return c.String(http.StatusNotFound, fmt.Sprintf("not found id = %d", id))
+	}
+
+	str := fmt.Sprintf("delete user id = %v", id)
+	return c.String(http.StatusOK, str)
 }
 
 func connect(ctx context.Context) (*sql.DB, error) {
