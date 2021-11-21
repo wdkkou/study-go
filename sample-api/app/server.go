@@ -1,16 +1,14 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 
-	sqls "sample-api/app/db"
+	"sample-api/app/controller"
+	"sample-api/app/model"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
@@ -18,9 +16,9 @@ import (
 
 func main() {
 
-	// if err := run(); err != nil {
-	// 	log.Fatal(err)
-	// }
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
 
 	e := echo.New()
 	e.GET("/", func(c echo.Context) error {
@@ -89,66 +87,60 @@ func saveMultipart(c echo.Context) error {
 	return c.String(http.StatusOK, "Hi, "+name)
 }
 
-type User struct {
-	Name  string `json:"name" xml:"name" form:"name" query:"name"`
-	Email string `json:"email" xml:"email" form:"email" query:"email"`
-}
-
-type CreateUser struct {
-	Id    int
-	Name  string
-	Email string
-}
-
 func getJson(c echo.Context) error {
-	u := new(User)
+	// u := new(User)
+	u := new(model.User)
 	// Content-Typeヘッダーに基づいて, バインドされる
 	// ex. applicatin/jsonの場合、{"name": "hoge", "email": "huga"}のデータがバインドされる
 	if err := c.Bind(u); err != nil {
 		return err
 	}
-	user := CreateUser{Id: 0, Name: u.Name, Email: u.Email}
+	user := model.User{Name: u.Name, Email: u.Email}
 	return c.JSON(http.StatusCreated, user)
 
 }
 
 func run() error {
-	ctx := context.Background()
-	db, err := sql.Open("mysql", "user:password@/dbname")
+	log.Println("run begin.")
+
+	// create a user
+	// user1 := User{Name: "wdk", Email: "hoge@hogehuga.com"}
+	_, err := controller.CreateUser()
 	if err != nil {
+		log.Println("create user error.")
+		return err
+	}
+
+	const id = 1
+	user, err := controller.GetUser(id)
+	if err != nil {
+		log.Println("get user error.")
 		return err
 	}
 
 	// list all users
-	queries := sqls.New(db)
-	users, err := queries.ListUsers(ctx)
+	users, err := controller.GetUsers()
 	if err != nil {
-		return err
-	}
-	log.Println(users)
-
-	// create a user
-	result, err := queries.CreateUser(ctx, sqls.CreateUserParams{
-		Name:  "koki wada",
-		Email: sql.NullString{String: "xxxx@yyyy.com", Valid: true},
-	})
-	if err != nil {
+		log.Println(err)
+		log.Println("list error.")
 		return err
 	}
 
-	insertedUserID, err := result.LastInsertId()
-	if err != nil {
+	if err := controller.DeleteUser(id); err != nil {
+		log.Println(err)
+		log.Println("user delete error.")
 		return err
 	}
-	log.Println(insertedUserID)
-
-	// get user we just inserted
-	fetchedUser, err := queries.GetUser(ctx, insertedUserID)
+	// Delete After list all users
+	usersAfterDeleted, err := controller.GetUsers()
 	if err != nil {
+		log.Println(err)
+		log.Println("list error.")
 		return err
 	}
 
-	// print true
-	log.Println(reflect.DeepEqual(insertedUserID, fetchedUser.ID))
+	log.Println("user = ", user)
+	log.Println("users = ", users)
+	log.Println("usersAfterDeleted = ", usersAfterDeleted)
 	return nil
 }
