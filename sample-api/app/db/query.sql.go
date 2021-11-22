@@ -17,7 +17,7 @@ VALUES
 
 type CreateUserParams struct {
 	Name  string
-	Email sql.NullString
+	Email string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
@@ -82,4 +82,25 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUser = `-- name: UpdateUser :exec
+UPDATE
+	users
+SET
+	name = ?,
+	email = ?
+WHERE
+	id = ?
+`
+
+type UpdateUserParams struct {
+	Name  string
+	Email string
+	ID    int64
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.ExecContext(ctx, updateUser, arg.Name, arg.Email, arg.ID)
+	return err
 }

@@ -31,9 +31,14 @@ func CreateUser(c echo.Context) error {
 	user := model.User{Name: u.Name, Email: u.Email}
 	params := sqls.CreateUserParams{
 		Name:  u.Name,
-		Email: sql.NullString{String: u.Email, Valid: true},
+		Email: u.Email,
 	}
-	queries.CreateUser(ctx, params)
+	_, err = queries.CreateUser(ctx, params)
+	if err != nil {
+		log.Println("create user error.")
+		return err
+	}
+
 	return c.String(http.StatusOK, fmt.Sprintf("created user =%v", user))
 }
 
@@ -75,7 +80,39 @@ func GetUsers(c echo.Context) error {
 		log.Println("get users error.")
 		return err
 	}
+
 	str := fmt.Sprintf("users = %v", users)
+	return c.String(http.StatusOK, str)
+}
+
+func UpdateUser(c echo.Context) error {
+	ctx := context.Background()
+	db, err := connect(ctx)
+	if err != nil {
+		log.Println("connect failed.")
+		log.Fatal(err.Error())
+	}
+	defer db.Close()
+
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	queries := sqls.New(db)
+	u := new(model.User)
+	if err := c.Bind(u); err != nil {
+		return err
+	}
+	params := sqls.UpdateUserParams{
+		ID:    id,
+		Name:  u.Name,
+		Email: u.Email,
+	}
+
+	queries.UpdateUser(ctx, params)
+	if err != nil {
+		log.Println("update user error.")
+		return err
+	}
+
+	str := fmt.Sprintf("updated user id = %d", id)
 	return c.String(http.StatusOK, str)
 }
 

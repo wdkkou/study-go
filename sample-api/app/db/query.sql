@@ -20,6 +20,15 @@ INSERT INTO
 VALUES
 	(?, ?);
 
+-- name: UpdateUser :exec
+UPDATE
+	users
+SET
+	name = ?,
+	email = ?
+WHERE
+	id = ?;
+
 -- name: DeleteUser :exec
 DELETE FROM
 	users

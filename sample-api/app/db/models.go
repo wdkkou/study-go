@@ -2,12 +2,10 @@
 
 package db
 
-import (
-	"database/sql"
-)
+import ()
 
 type User struct {
 	ID    int64
 	Name  string
-	Email sql.NullString
+	Email string
 }
